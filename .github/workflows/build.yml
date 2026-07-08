@@ -45,6 +45,16 @@ jobs:
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
 
+      - name: Force local packages version (Dirty Hack)
+        run: |
+          cd ~/.local/var/pmbootstrap/cache_git/pmaports
+          # 将这几个容易起冲突的基础包的版本号强行改成 99.99.99，防止被官方新包覆盖
+          find main/postmarketos-mkinitfs -name "APKBUILD" -exec sed -i 's/^pkgver=.*/pkgver=99.99.99/' {} +
+          find main/boot-deploy -name "APKBUILD" -exec sed -i 's/^pkgver=.*/pkgver=99.99.99/' {} +
+          # 顺便更新一下它们的校验和，防止报错
+          pmbootstrap checksum postmarketos-mkinitfs
+          pmbootstrap checksum boot-deploy
+
       - name: Compile kernel with envkernel
         run: |
           cd linux
