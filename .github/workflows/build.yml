@@ -21,7 +21,7 @@ jobs:
 
       - name: Install pmbootstrap from git
         run: |
-          git clone https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git
+          git clone --branch 3.8.0 --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git
           cd pmbootstrap
           git checkout 3.8.0
           cd ..
@@ -57,7 +57,8 @@ jobs:
       - name: Create artifact directory
         run: |
           mkdir out
-
+          
+      
       - name: Build xiaomi-alioth
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
