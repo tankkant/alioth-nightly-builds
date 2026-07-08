@@ -52,7 +52,7 @@ jobs:
           source ../pmbootstrap/helpers/envkernel.sh
           make defconfig sm8250.config
           make -j$(nproc)
-          pmbootstrap build --envkernel linux-postmarketos-qcom-sm8250-alioth
+          env -u CI pmbootstrap build --envkernel linux-postmarketos-qcom-sm8250-alioth
 
       - name: Create artifact directory
         run: |
@@ -61,8 +61,8 @@ jobs:
       - name: Build xiaomi-alioth
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
-          pmbootstrap install --password 147147
-          pmbootstrap export
+          env -u CI pmbootstrap install --password 147147
+          env -u CI pmbootstrap export
           cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-tianma-alioth.img
           cp /tmp/postmarketOS-export/xiaomi-alioth.img out/rootfs-xiaomi-alioth.img
 
