@@ -7,6 +7,7 @@ on:
 
 env:
   KERNEL_BRANCH: 6.12.1
+  PMBOOTSTRAP_OPTS: "--lax"
 
 jobs:
   build-image:
@@ -58,7 +59,7 @@ jobs:
       - name: Build xiaomi-alioth
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
-          pmbootstrap build --force postmarketos-installkernel
+          pmbootstrap build --force postmarketos-installkernel --lax
           pmbootstrap install --password 147147 --lax
           pmbootstrap export
           cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-tianma-alioth.img
