@@ -28,11 +28,11 @@ jobs:
 
       - name: Set up pmaports
         run: |
-          echo -e '\n\n' | pmbootstrap init || true
+          printf "\n\n\n\n\n\n" | pmbootstrap init || true
           cd ~/.local/var/pmbootstrap/cache_git/pmaports
           git remote add mainlining https://github.com/mainlining/pmaports.git
           git fetch mainlining nikroks/alioth
-          git reset --hard mainlining/nikroks/alioth
+          git checkout -B nikroks-alioth mainlining/nikroks/alioth
 
       - name: Clone kernel sources
         run: |
@@ -58,6 +58,7 @@ jobs:
       - name: Build xiaomi-alioth
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
+          pmbootstrap build --force postmarketos-installkernel
           pmbootstrap install --password 147147 --lax
           pmbootstrap export
           cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-tianma-alioth.img
