@@ -45,15 +45,27 @@ jobs:
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
 
-      - name: Force local packages version (Dirty Hack)
+      - name: Force local packages version (Dirty Hack Fix)
         run: |
           cd ~/.local/var/pmbootstrap/cache_git/pmaports
-          # 将这几个容易起冲突的基础包的版本号强行改成 99.99.99，防止被官方新包覆盖
-          find main/postmarketos-mkinitfs -name "APKBUILD" -exec sed -i 's/^pkgver=.*/pkgver=99.99.99/' {} +
-          find main/boot-deploy -name "APKBUILD" -exec sed -i 's/^pkgver=.*/pkgver=99.99.99/' {} +
-          # 顺便更新一下它们的校验和，防止报错
-          pmbootstrap checksum postmarketos-mkinitfs
-          pmbootstrap checksum boot-deploy
+          
+          for pkg in main/postmarketos-mkinitfs main/boot-deploy; do
+            if [ -d "$pkg" ]; then
+              # 1. 提取原本的版本号（比如 2.6.1）
+              OLD_VER=$(grep -E '^pkgver=' "$pkg/APKBUILD" | cut -d= -f2 | tr -d '"'\''')
+              echo "正在处理 $pkg，原始版本号为: $OLD_VER"
+              
+              # 2. 把源码地址里的 $pkgver 变量替换为写死的旧版本号，防止下载时 404
+              sed -i "s|\$pkgver|$OLD_VER|g" "$pkg/APKBUILD"
+              sed -i "s|\${pkgver}|$OLD_VER|g" "$pkg/APKBUILD"
+              
+              # 3. 此时再把全局 pkgver 强行改成 99.99.99，用来欺骗 apk 包管理器
+              sed -i "s/^pkgver=.*/pkgver=99.99.99/" "$pkg/APKBUILD"
+              
+              # 4. 生成校验和（同样加上 env -u CI 保险）
+              env -u CI pmbootstrap checksum $(basename $pkg)
+            fi
+          done
 
       - name: Compile kernel with envkernel
         run: |
