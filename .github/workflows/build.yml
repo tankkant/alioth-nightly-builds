@@ -3,7 +3,7 @@ on:
   push:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 5' # Run every friday at midnight
+    - cron: '0 0 * * 5' # 每周五午夜运行
 
 env:
   KERNEL_BRANCH: 6.12.1
@@ -19,23 +19,32 @@ jobs:
         run: |
           find . -type f -name "*.cfg" -exec sed -i "s|HOME|$(echo $HOME)|;s|NPROC|$(nproc)|" {} +
 
-      - name: Install pmbootstrap from git
+      - name: Install pmbootstrap from git (Latest Master)
         run: |
-          git clone --branch 3.8.0 --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git
-          cd pmbootstrap
-          git checkout 3.8.0
-          cd ..
+          # 建议使用 master 分支，以完美兼容最新的 Alpine 仓库变更
+          git clone --branch master --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git
           mkdir -p ~/.local/bin
           ln -s "$PWD/pmbootstrap/pmbootstrap.py" ~/.local/bin/pmbootstrap
           pmbootstrap --version
 
-      - name: Set up pmaports
+      - name: Set up pmaports (Surgical Integration)
         run: |
+          # 1. 初始化会默认拉取官方最新、最干净的主线 pmaports
           echo -e '\n\n' | pmbootstrap init || true
           cd ~/.local/var/pmbootstrap/cache_git/pmaports
+          
+          git checkout master
+          git pull origin master
+          
+          # 2. 接入自定义的 mainlining 远程仓库
           git remote add mainlining https://github.com/mainlining/pmaports.git
           git fetch mainlining nikroks/alioth
-          git reset --hard mainlining/nikroks/alioth
+          
+          # 3. 【核心修复】手术式精准检出：只拿 alioth 的设备包、内核包和固件包
+          # 绝不污染和覆盖 main/ 目录下的核心工具链，彻底根治工具链断层
+          git checkout mainlining/nikroks/alioth -- device/testing/device-xiaomi-alioth
+          git checkout mainlining/nikroks/alioth -- device/testing/linux-postmarketos-qcom-sm8250-alioth
+          git checkout mainlining/nikroks/alioth -- device/testing/firmware-xiaomi-alioth || true
 
       - name: Clone kernel sources
         run: |
@@ -44,28 +53,6 @@ jobs:
       - name: Choose any SM8250 device in pmbootstrap to build kernel
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
-
-      - name: Force local packages version (Dirty Hack Fix)
-        run: |
-          cd ~/.local/var/pmbootstrap/cache_git/pmaports
-          
-          for pkg in main/postmarketos-mkinitfs main/boot-deploy; do
-            if [ -d "$pkg" ]; then
-              # 1. 提取原本的版本号（比如 2.6.1）
-              OLD_VER=$(grep -E '^pkgver=' "$pkg/APKBUILD" | cut -d= -f2 | tr -d '"'\''')
-              echo "正在处理 $pkg，原始版本号为: $OLD_VER"
-              
-              # 2. 把源码地址里的 $pkgver 变量替换为写死的旧版本号，防止下载时 404
-              sed -i "s|\$pkgver|$OLD_VER|g" "$pkg/APKBUILD"
-              sed -i "s|\${pkgver}|$OLD_VER|g" "$pkg/APKBUILD"
-              
-              # 3. 此时再把全局 pkgver 强行改成 99.99.99，用来欺骗 apk 包管理器
-              sed -i "s/^pkgver=.*/pkgver=99.99.99/" "$pkg/APKBUILD"
-              
-              # 4. 生成校验和（同样加上 env -u CI 保险）
-              env -u CI pmbootstrap checksum $(basename $pkg)
-            fi
-          done
 
       - name: Compile kernel with envkernel
         run: |
@@ -80,10 +67,10 @@ jobs:
         run: |
           mkdir out
           
-      
       - name: Build xiaomi-alioth
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
+          # 此时安装阶段会直接下载官方预编译好的最新 boot-deploy 二进制包，秒过！
           env -u CI pmbootstrap install --password 147147
           env -u CI pmbootstrap export
           cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-tianma-alioth.img
